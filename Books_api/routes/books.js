@@ -8,6 +8,9 @@ sock.connect("tcp://127.0.0.1:8000");
 sockPush.bindSync("tcp://127.0.0.1:8001");
 let books = [];
 
+const db = require("../models");
+const book = db.book;
+
 sock.on("message", function(msg) {
     let o = JSON.parse(msg.toString());
     if(o.action === "achat") {
@@ -28,31 +31,25 @@ sock.on("message", function(msg) {
 });
 
 router.get('/', function(req, res, next) {
-    res.send(books);
+    book.findAll().then(types => {
+        res.send(types);
+    });
 });
 
 router.post('/', function(req, res, next) {
-    let book = {};
-    book.id = books.length;
-    book.titre = req.body.titre;
-    book.auteur = req.body.auteur;
-    book.stock = 10;
-    books.push(book);
-    res.send({message: 'book créé'});
+    book.create({
+      title: req.body.title,
+      author: req.body.author,
+      quantity: req.body.quantity
+    })
+    .then(res.send({ message: "book créé !" }))
+    .catch(err => {
+        res.status(500).send({ message: err.message });
+    });
 });
 
 router.get('/:id', function(req, res, next) {
-    let book = null;
-    books.forEach(l => {
-        if(l.id === parseInt(req.params.id)) {
-            book = l;
-        }
-    })
-    if(book !== null) {
-        res.send(book)
-    } else {
-        res.status(404).send({error: 'book introuvable'});
-    }
+    res.send(plexType.findOne({ where: { libelle: req.params.id } }));
 });
 
 router.post('/:id/acheter', function(req, res, next) {

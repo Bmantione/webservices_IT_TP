@@ -9,6 +9,10 @@ let baskets = [];
 sock.bindSync("tcp://127.0.0.1:8000");
 sockPull.connect("tcp://127.0.0.1:8001");
 
+const db = require("../models");
+const basket = db.basket;
+const basketinfo = db.basketinfo;
+
 sockPull.on("message", function(msg) {
     console.log("message reçu")
     let o = JSON.parse(msg.toString());
@@ -18,7 +22,9 @@ sockPull.on("message", function(msg) {
 });
 
 router.get('/', function (req, res, next) {
-    res.send(baskets);
+    basket.findAll().then(types => {
+        res.send(types);
+    });
 });
 
 router.post('/', function (req, res, next) {
