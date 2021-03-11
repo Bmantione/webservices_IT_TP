@@ -2,7 +2,7 @@
 ## composition de l'équipe
 - Corentin AMELINE
 - Baptiste MANTIONE
-- Quentin PENAULT
+- Quentin PÉNAULT
 - Mathieu BERNARD
 - Kiliann LECLERRE
 - Aymeric DUFRESNE
