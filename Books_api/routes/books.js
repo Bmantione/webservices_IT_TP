@@ -13,9 +13,9 @@ const book = db.book;
 sock.on("message", function (msg) {
     let json = JSON.parse(msg.toString());
     if (json.action === "buy") {
-        book.findOne({ where: { libelle: parseInt(json.idBook) } }).then(book => {
-            if (book.stock >= json.quantity) {
-                book.stock -= json.quantity;
+        book.findOne({ where: { id: parseInt(json.idBook) } }).then(book => {
+            if (book.quantity >= json.quantity) {
+                book.quantity -= json.quantity;
                 book.save().then(() =>
                     sockPush.send(JSON.stringify({ action: "validateBuy", idBook: json.idBook }))
                 ).catch(

@@ -15,7 +15,7 @@ const Basketinfo = db.basketinfo;
 sockPull.on("message", function (msg) {
     let json = JSON.parse(msg.toString());
     if (json.action === "validateBuy") {
-        console.log(">>>> Basket created <<<<");
+        console.log(">>>> Book sell <<<<");
     }
 });
 
@@ -68,12 +68,13 @@ router.post('/', function (req, res, next) {
     })
 });
 
-router.put('/:id/validate', function (req, res, next) {
+router.get('/:id/validate', function (req, res, next) {
     Basket.findOne({ where: { id: parseInt(req.params.id) } }).then(basket => {
-        sock.send(JSON.stringify({ action: "buy", idBook: basket.idBook }));
-
-        res.send({ message: 'Basket is creating...' });
-    }).catch(error => res.status(400).send({ error }));
+        Basketinfo.findOne({where: {id: basket.id} }).then(basketInfos =>{
+            sock.send(JSON.stringify({ action: "buy", idBook: basketInfos.idBook, quantity: basketInfos.quantity }));
+            res.send({ message: 'Basket is creating...' });
+        }).catch(error => res.status(400).send({ error: error.message }));
+    }).catch(error => res.status(400).send({ error: error.message }));
 });
 
 module.exports = router;
