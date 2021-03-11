@@ -9,8 +9,8 @@ sock.bindSync("tcp://127.0.0.1:8000");
 sockPull.connect("tcp://127.0.0.1:8001");
 
 const db = require("../models");
-const basket = db.basket;
-// const basketinfo = db.basketinfo;
+const Basket = db.basket;
+const Basketinfo = db.basketinfo;
 
 sockPull.on("message", function (msg) {
     let json = JSON.parse(msg.toString());
@@ -20,31 +20,56 @@ sockPull.on("message", function (msg) {
 });
 
 router.get('/', function (req, res, next) {
-    basket.findAll().then(baskets => {
+    Basket.findAll().then(baskets => {
         res.send(baskets);
     });
 });
 
 router.post('/', function (req, res, next) {
-    let basket = { idBook: req.body.idBook };
-
-    axios.get(`http://127.0.0.1:3000/books/${basket.idBook}`)
-        .then(function (book) {
-            basket.id = baskets.length;
-            basket.date = new Date();
-            basket.save().then(() => {
-                res.send({ message: 'Basket created' });
-            }).catch(error => {
-                res.status(400).send({ error })
+    // if basket doesn't exist, create it.
+    Basket.findOne({ where: { id: parseInt(req.body.basketId) } }).then(basket => {
+        if(basket === null) {
+            Basket.create()
+            .then(basket => {
+                axios.get(`http://127.0.0.1:3000/books/${req.body.bookId}`)
+                .then(book => {
+                    Basketinfo.create({
+                        basketId: basket.id,
+                        idBook: book.data.id,
+                        title: book.data.title,
+                        author: book.data.author,
+                        quantity: req.body.quantity
+                    })
+                    .then(result => res.send({ message: 'new Book ('+ book.data.title +') add to Basket' }))
+                    .catch(err => res.status(500).send({ message: err.message }));
+                })
+                .catch(function (error) {
+                    res.status(400).send({ error });
+                })
             })
-        })
-        .catch(function (error) {
-            res.status(400).send({ error });
-        })
+            .catch(err => res.status(500).send({ message: err.message }));
+        } else {
+            axios.get(`http://127.0.0.1:3000/books/${req.params.bookId}`)
+            .then(book => {
+                Basketinfo.create({
+                    basketId: req.body.basketId,
+                    idBook: book.data.id,
+                    title: book.data.title,
+                    author: book.data.author,
+                    quantity: req.body.quantity
+                })
+                .then(result => res.send({ message: 'new Book ('+ book.data.title +') add to Basket' }))
+                .catch(err => res.status(500).send({ message: err.message }));
+            })
+            .catch(function (error) {
+                res.status(400).send({ error });
+            });
+        }
+    })
 });
 
 router.put('/:id/validate', function (req, res, next) {
-    basket.findOne({ where: { libelle: parseInt(req.params.id) } }).then(basket => {
+    Basket.findOne({ where: { id: parseInt(req.params.id) } }).then(basket => {
         sock.send(JSON.stringify({ action: "buy", idBook: basket.idBook }));
 
         res.send({ message: 'Basket is creating...' });

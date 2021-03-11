@@ -14,8 +14,8 @@ sock.on("message", function (msg) {
     let json = JSON.parse(msg.toString());
     if (json.action === "buy") {
         book.findOne({ where: { libelle: parseInt(json.idBook) } }).then(book => {
-            if (book.stock > 1) {
-                book.stock--;
+            if (book.stock >= json.quantity) {
+                book.stock -= json.quantity;
                 book.save().then(() =>
                     sockPush.send(JSON.stringify({ action: "validateBuy", idBook: json.idBook }))
                 ).catch(
@@ -43,7 +43,7 @@ router.post('/', function (req, res, next) {
 });
 
 router.get('/:id', function (req, res, next) {
-    book.findOne({ where: { libelle: parseInt(req.params.id) } }).then(book => {
+    book.findOne({ where: { id: parseInt(req.params.id) } }).then(book => {
         if (book !== null) {
             res.send(book);
         } else {
