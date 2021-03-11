@@ -1,69 +1,70 @@
 var express = require('express');
 var router = express.Router();
-var zmq = require("zeromq"),
-  sock = zmq.socket("pull"),
-  sockPush = zmq.socket("push");
+var zmq = require("zeromq");
+var sock = zmq.socket("pull");
+var sockPush = zmq.socket("push");
 
 sock.connect("tcp://127.0.0.1:8000");
 sockPush.bindSync("tcp://127.0.0.1:8001");
-let books = [];
 
 const db = require("../models");
 const book = db.book;
 
-sock.on("message", function(msg) {
-    let o = JSON.parse(msg.toString());
-    if(o.action === "achat") {
-        books.forEach(book => {
-            if(book.id === parseInt(o.idbook)) {
-                if(book.stock > 1) {
-                    book.stock--;
-                    console.log("books, décompte stock")
-                    sockPush.send(JSON.stringify({ action: "validation_achat", idbook: o.idbook }))
-                } else {
-                    // TODO
-                    return;
-                }
+sock.on("message", function (msg) {
+    let json = JSON.parse(msg.toString());
+    if (json.action === "buy") {
+        book.findOne({ where: { libelle: parseInt(json.idBook) } }).then(book => {
+            if (book.stock > 1) {
+                book.stock--;
+                book.save().then(() =>
+                    sockPush.send(JSON.stringify({ action: "validateBuy", idBook: json.idBook }))
+                ).catch(
+                    err => res.status(500).send({ message: err.message })
+                );
             }
         })
     }
-    //console.log("work: %s", msg.toString());
 });
 
-router.get('/', function(req, res, next) {
-    book.findAll().then(types => {
-        res.send(types);
+router.get('/', function (req, res, next) {
+    book.findAll().then(books => {
+        res.send(books);
     });
 });
 
-router.post('/', function(req, res, next) {
+router.post('/', function (req, res, next) {
     book.create({
-      title: req.body.title,
-      author: req.body.author,
-      quantity: req.body.quantity
+        title: req.body.title,
+        author: req.body.author,
+        quantity: req.body.quantity
     })
-    .then(res.send({ message: "book créé !" }))
-    .catch(err => {
-        res.status(500).send({ message: err.message });
-    });
+    .then(result => res.send({ message: "Book created" }))
+    .catch(err => res.status(500).send({ message: err.message }));
 });
 
-router.get('/:id', function(req, res, next) {
-    res.send(plexType.findOne({ where: { libelle: req.params.id } }));
-});
-
-router.post('/:id/acheter', function(req, res, next) {
-    books.forEach(book => {
-        if(book.id === parseInt(req.params.id)) {
-            if(book.stock > 1) {
-                book.stock--;
-            } else {
-                res.status(400).send({ message: 'book plus en stock' });
-                return;
-            }
+router.get('/:id', function (req, res, next) {
+    book.findOne({ where: { libelle: parseInt(req.params.id) } }).then(book => {
+        if (book !== null) {
+            res.send(book);
+        } else {
+            res.status(404).send({ error: 'Book not found' })
         }
-    })
-    res.send({message: 'book acheté'});
+    }).catch(error => res.status(404).send({ error }));
+});
+
+router.post('/:id/buy', function (req, res, next) {
+    book.findAll().then(books => {
+        books.forEach(book => {
+            if (book.id === parseInt(req.params.id)) {
+                if (book.stock > 1) {
+                    book.stock--;
+                } else {
+                    res.status(400).send({ message: 'This book is no longer in stock' });
+                }
+            }
+        })
+        res.send({ message: 'Book bought' });
+    }).catch(error => res.status(404).send({ error }))
 });
 
 module.exports = router;
